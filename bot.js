@@ -1,4 +1,7 @@
 // bot.js
+console.log("TensorFlow:", typeof tf);
+console.log("USE:", typeof use);
+
 let model = null;
 let faq = [];
 let faqEmbeddings = null;
