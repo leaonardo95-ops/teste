@@ -1,28 +1,65 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ReformaTrib Chatbot</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- TensorFlow.js and Universal Sentence Encoder -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@2.4.0/dist/universal-sentence-encoder.min.js"></script>
-  <script src="bot.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatbot Reforma Tributária</title>
+
+  <!-- TensorFlow e modelo de linguagem -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder@latest"></script>
+
+  <!-- Script do bot -->
+  <script defer src="bot.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #101010;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    #chatbox {
+      background: #181818;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 0 10px #000;
+    }
+    #resposta {
+      margin-top: 15px;
+      color: #90ee90;
+      font-weight: bold;
+    }
+    input, button {
+      padding: 10px;
+      margin-top: 10px;
+      width: 100%;
+      border-radius: 5px;
+      border: none;
+      font-size: 16px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
 </head>
 <body>
-  <main class="container">
-    <h1>ReformaTrib — Chatbot especialista</h1>
-    <div id="chat">
-      <div id="messages"></div>
-      <div id="controls">
-        <textarea id="input" placeholder="Digite sua pergunta sobre reforma tributária..." rows="2"></textarea>
-        <button id="send">Enviar</button>
-      </div>
-    </div>
-    <div id="status">Carregando modelo e perguntas...</div>
-  </main>
-
-  <script src="bot.js"></script>
+  <div id="chatbox">
+    <h2>🤖 Chatbot Reforma Tributária</h2>
+    <input id="pergunta" type="text" placeholder="Digite sua pergunta..." />
+    <button id="enviar">Enviar</button>
+    <div id="resposta"></div>
+  </div>
 </body>
 </html>
