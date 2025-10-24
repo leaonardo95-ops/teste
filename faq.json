@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "pergunta": "Quais faixas de renda são isentas?",
+    "resposta": "Rendas de até R$5.000,00 serão isentas."
+  },
+  {
+    "id": 2,
+    "pergunta": "A isenção vale para todos os tipos de renda?",
+    "resposta": "A PL trata \"rendimentos\" em termos gerais."
+  },
+  {
+    "id": 3,
+    "pergunta": "Quem é MEI ou autônomo, também tem direito à isenção?",
+    "resposta": "Sim, a isenção vale para todos os tipos de rendas tributáveis."
+  }
+]
