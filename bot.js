@@ -1,141 +1,80 @@
-// bot.js
-console.log("TensorFlow:", typeof tf);
-console.log("USE:", typeof use);
+let model;
 
-let model = null;
-let faq = [];
-let faqEmbeddings = null;
+// 🧠 Banco de perguntas e respostas
+const perguntas = {
+  1: "Quais faixas de renda são isentas?",
+  2: "A isenção vale para todos os tipos de renda?",
+  3: "Quem é MEI ou autônomo também tem direito à isenção?"
+};
 
-const statusEl = document.getElementById('status');
-const messagesEl = document.getElementById('messages');
-const inputEl = document.getElementById('input');
-const sendBtn = document.getElementById('send');
+const respostas = {
+  1: "Rendas de até R$5.000,00 serão isentas.",
+  2: "A PL trata 'rendimentos' em termos gerais.",
+  3: "Sim, a isenção vale para todos os tipos de rendas tributáveis."
+};
 
-function addMessage(text, from='bot') {
-  const d = document.createElement('div');
-  d.className = 'msg ' + (from === 'user' ? 'user' : 'bot');
-  d.textContent = text;
-  messagesEl.appendChild(d);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-function normalizeText(s) {
-  return s
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remover acentos
-    .replace(/[^\w\s]/g, ' ') // remover pontuação
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function jaccard(aTokens, bTokens) {
-  const A = new Set(aTokens);
-  const B = new Set(bTokens);
-  const inter = new Set([...A].filter(x => B.has(x)));
-  const union = new Set([...A, ...B]);
-  return inter.size === 0 ? 0 : inter.size / union.size;
-}
-
-function cosine(u, v) {
-  let dot = 0, nu = 0, nv = 0;
-  for (let i = 0; i < u.length; i++) {
-    dot += u[i] * v[i];
-    nu += u[i]*u[i];
-    nv += v[i]*v[i];
-  }
-  return dot / (Math.sqrt(nu) * Math.sqrt(nv) + 1e-8);
-}
-
-async function loadFaq() {
-  const res = await fetch('faq.json');
-  faq = await res.json();
-}
-
-async function embedFaqs() {
-  const texts = faq.map(item => item.pergunta);
-  faqEmbeddings = await model.embed(texts);
-  // faqEmbeddings is a tensor; convert to array for easier use
-  faqEmbeddings = await faqEmbeddings.array();
-}
-
+// 🚀 Inicialização
 async function init() {
-  statusEl.textContent = 'Carregando modelo... (pode demorar alguns segundos na primeira vez)';
-  model = await use.load(); // universal-sentence-encoder
-  statusEl.textContent = 'Carregando FAQ...';
-  await loadFaq();
-  statusEl.textContent = 'Criando embeddings da FAQ...';
-  await embedFaqs();
-  statusEl.textContent = 'Pronto — pergunte algo sobre reforma tributária!';
+  try {
+    console.log("Carregando modelo...");
+    model = await use.load();
+    console.log("Modelo carregado com sucesso!");
+
+    // Agora que o modelo carregou, habilita o botão
+    const btn = document.getElementById("enviar");
+    btn.addEventListener("click", responderPergunta);
+  } catch (err) {
+    console.error("Erro ao carregar o modelo:", err);
+  }
 }
 
-async function handleQuestion(raw) {
-  const text = raw.trim();
-  if (!text) return;
-  addMessage(text, 'user');
-  statusEl.textContent = 'Analisando...';
+// 🔍 Função para comparar similaridade semântica
+async function calcularSimilaridade(texto1, texto2) {
+  const embeddings = await model.embed([texto1, texto2]);
+  const vecs = await embeddings.array();
+  const [a, b] = vecs;
 
-  const norm = normalizeText(text);
-  const tokens = norm.split(' ').filter(Boolean);
+  // produto escalar
+  const dot = a.map((v, i) => v * b[i]).reduce((acc, val) => acc + val, 0);
+  // norma vetorial
+  const normA = Math.sqrt(a.reduce((acc, val) => acc + val ** 2, 0));
+  const normB = Math.sqrt(b.reduce((acc, val) => acc + val ** 2, 0));
 
-  // embedding do input
-  const embTensor = await model.embed([text]);
-  const embArr = (await embTensor.array())[0];
+  return dot / (normA * normB);
+}
 
-  // calcular similaridades
-  let bestIdx = 0;
-  let bestScore = -1;
-  const weights = { sem: 0.7, jac: 0.2, len: 0.1 }; // ajuste de pesos
+// 💬 Função principal de resposta
+async function responderPergunta() {
+  const texto = document.getElementById("pergunta").value.trim();
+  const respDiv = document.getElementById("resposta");
 
-  for (let i = 0; i < faq.length; i++) {
-    const qnorm = normalizeText(faq[i].pergunta);
-    const qtokens = qnorm.split(' ').filter(Boolean);
-
-    const sem = cosine(embArr, faqEmbeddings[i]);
-    const jac = jaccard(tokens, qtokens);
-    // overlap coefficient: inter / min(|A|,|B|)
-    const inter = tokens.filter(t => qtokens.includes(t)).length;
-    const overlap = inter === 0 ? 0 : inter / Math.min(tokens.length, qtokens.length);
-
-    const score = weights.sem*sem + weights.jac*jac + weights.len*overlap;
-
-    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  if (!texto) {
+    respDiv.textContent = "Por favor, digite uma pergunta.";
+    return;
   }
 
-  // thresholds — ajuste conforme necessário
-  const HIGH = 0.65;
-  const LOW = 0.30;
+  let melhorIndice = null;
+  let maiorSimilaridade = -1;
 
-  if (bestScore >= HIGH) {
-    addMessage(faq[bestIdx].resposta, 'bot');
-  } else if (bestScore < LOW) {
-    addMessage('Desculpe — não encontrei uma resposta segura. Pode reformular ou ser mais específico?', 'bot');
+  for (const [i, pergunta] of Object.entries(perguntas)) {
+    const similaridade = await calcularSimilaridade(texto, pergunta);
+    console.log(`Similaridade [${i}]:`, similaridade);
+
+    if (similaridade > maiorSimilaridade) {
+      maiorSimilaridade = similaridade;
+      melhorIndice = i;
+    }
+  }
+
+  // Classificação simples
+  if (maiorSimilaridade > 0.75) {
+    respDiv.textContent = respostas[melhorIndice];
+  } else if (maiorSimilaridade < 0.4) {
+    respDiv.textContent = "Desculpe, não tenho certeza sobre isso. Pode reformular sua pergunta?";
   } else {
-    // resposta com incerteza: mostrar resposta candidata + pedir confirmação
-    addMessage(`Talvez você queira saber: "${faq[bestIdx].pergunta}"\nResposta sugerida: ${faq[bestIdx].resposta}\nSe não, reformule sua pergunta.`, 'bot');
+    respDiv.textContent = "Poderia especificar melhor sua pergunta?";
   }
-
-  statusEl.textContent = `Última checagem: score=${bestScore.toFixed(2)} (modelo on-device)`;
 }
 
-sendBtn.addEventListener('click', () => {
-  handleQuestion(inputEl.value);
-  inputEl.value = '';
-});
-
-inputEl.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendBtn.click();
-  }
-});
-
-// inicialização
-let use = window.use; // universal sentence encoder é carregado globalmente
-if (!use) {
-  // em alguns CDN, o objeto pode vir sob diferente namespace
-  // mas carregamos via <script> em index.html, então deve existir
-}
-init().catch(err => {
-  console.error(err);
-  statusEl.textContent = 'Erro ao inicializar: veja console.';
-});
+// 🔁 Quando a página carregar, inicia o modelo
+window.onload = init;
